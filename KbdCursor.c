@@ -28,6 +28,7 @@ static char clock_buf[40];
 
 #define printText(...) {sprintf(text_buffer, __VA_ARGS__); tq_enqueue(text_buffer); tq_print();}
 
+
 void getTime(void) {
 	SYSTEMTIME st;
 	GetLocalTime(&st);
@@ -127,6 +128,7 @@ LRESULT CALLBACK HOOKFUNC( int nCode, WPARAM wParam, LPARAM lParam ){
 	ignore_next_hook:
 		return 1;
 }
+DWORD WINAPI ThreadMain (LPVOID lpParmam);
 int main(){
 	// ON with CTRL+SHIFT+X
 	// OFF with CTRL+SHIFT+C
@@ -147,8 +149,10 @@ int main(){
 	}
 	printText("HotKey: Ctrl+Shift+V registered to exit");
 
-	hook_id = SetWindowsHookEx( WH_KEYBOARD_LL, HOOKFUNC, (HINSTANCE) GetModuleHandle(NULL), 0 );
-	printText("Hook: Success with id = 0x%X", hook_id);
+	// hook_id = SetWindowsHookEx( WH_KEYBOARD_LL, HOOKFUNC, (HINSTANCE) GetModuleHandle(NULL), 0 );
+	// printText("Hook: Success with id = 0x%X", hook_id);
+
+	CreateThread(NULL, 1024, &ThreadMain, NULL, 0, NULL);
 
 	MSG msg;
 	while( GetMessage(&msg, NULL, 0, 0) != 0 ){
@@ -172,5 +176,36 @@ int main(){
 		}
 		TranslateMessage( &msg );
 		DispatchMessage( &msg );
+	}
+}
+
+/* thread variables */
+#define KB_LENGTH 256
+ULONGLONG prevTick, curTick;
+BYTE prevKeyState[KB_LENGTH], curKeyState[KB_LENGTH];
+ULONGLONG lastPressedTick[KB_LENGTH];
+// x2 = x1 + v*(t2-t1) + 1/2*a*(t2*t2-t1*t1)
+DWORD WINAPI ThreadMain (LPVOID lpParmam) {
+	prevTick = GetTickCount64();
+	memset(prevKeyState, 0, KB_LENGTH);
+
+	int i;
+	while (1) {
+		getTime();
+
+		curTick = GetTickCount64();
+
+		GetKeyboardState(curKeyState);
+		// for (i=0;i<KB_LENGTH;i++) {
+			
+		// }
+		if (curKeyState[VK_UP] == 1) {
+			printText("[%s] UP", clock_buf);
+		}
+		prevTick = curTick;
+		memcpy(prevKeyState, curKeyState, KB_LENGTH);
+		while(!isActive) {
+			memset(prevKeyState, 0, KB_LENGTH);
+		}
 	}
 }
